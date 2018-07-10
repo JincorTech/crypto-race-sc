@@ -46,6 +46,16 @@ contract Race {
     Track storage t = tracks[id];
     addPlayer(t, createPlayer(msg.sender, t.playerAddresses.length));
   }
+
+  function joinToTrack(bytes32 _id) external payable onlyFreeTrack(_id) {
+    require(msg.value == deposites[_id][getTrackOwner(_id)]);
+    Track storage t = tracks[_id];
+      
+    require(!(t.players[msg.sender].addr == msg.sender));
+    require(!isReadyToStart(_id));
+      
+    addPlayer(t, createPlayer(msg.sender, t.playerAddresses.length));
+  }
   
   function getCountPlayerByTrackId(bytes32 _id) public view returns (uint) {
     return tracks[_id].playerAddresses.length;
@@ -67,15 +77,6 @@ contract Race {
     }
       
     return a;
-  }
-  
-  function joinToTrack(bytes32 _id) public onlyFreeTrack(_id) {
-    Track storage t = tracks[_id];
-      
-    require(!(t.players[msg.sender].addr == msg.sender));
-    require(!isReadyToStart(_id));
-      
-    addPlayer(t, createPlayer(msg.sender, t.playerAddresses.length));
   }
   
   function setPortfolio(bytes32 _trackId, bytes32[] names, uint[] values) external {
