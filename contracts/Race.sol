@@ -27,7 +27,7 @@ contract Race {
   }
   
   mapping(bytes32 => Track) public tracks;
-  
+  mapping(bytes32 => mapping(address => uint)) public deposites;
   mapping(bytes32 => RunningTrack) public runningTracks;
   
   modifier onlyFreeTrack(bytes32 _trackId) {
@@ -38,8 +38,9 @@ contract Race {
   event DebugUint(uint i);
   event DebugBytes(bytes32 b);
 
-  function createTrack(bytes32 id) external {
+  function createTrack(bytes32 id) external payable {
     require(tracks[id].numPlayers == 0);
+    deposites[id][msg.sender] = msg.value;
 
     tracks[id] = createEmptyTrack();
     Track storage t = tracks[id];
@@ -123,6 +124,10 @@ contract Race {
     Track storage t = tracks[_trackId];
     
     return t.readyCount == t.numPlayers;
+  }
+
+  function getDepo(bytes32 _trackId, address _from) public view returns (uint) {
+    return deposites[_trackId][_from];
   }
   
   function isEndedTrack(bytes32 _trackId) public view returns (bool) {
