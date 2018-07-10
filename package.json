@@ -1,0 +1,19 @@
+{
+  "name": "crypto-race-sc",
+  "version": "0.0.1",
+  "main": " ",
+  "repository": "git@github.com:JincorTech/crypto-race-sc.git",
+  "author": "aleserche <aleserche@gmail.com>",
+  "scripts": {
+    "rpc": "node startRPC.js",
+    "test": "truffle test",
+    "merge": "node node_modules/sol-merger/bin/sol-merger.js './contracts/*.sol' ./merge"
+  },
+  "dependencies": {
+    "chai": "^4.1.2",
+    "chai-as-promised": "^7.1.1",
+    "ganache-cli": "^6.1.5",
+    "sol-merger": "^0.1.2",
+    "zeppelin-solidity": "^1.10.0"
+  }
+}
