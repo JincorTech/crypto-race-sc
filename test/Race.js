@@ -150,7 +150,28 @@ contract('Race', function(accounts) {
     const startTime = await this.race.runningTracks(hashId);
     await this.rate.setRates(startTime, names, [web3.toBigNumber(600000), web3.toBigNumber(40000)]);
     await this.rate.setRates(startTime.plus(300), names, [web3.toBigNumber(650000), web3.toBigNumber(45000)]);
-    
+
     assert.deepEqual(await this.race.getWinners(hashId), ['0x6e517e4acf913ac5994c16c1792ba1666655d050']);
+  });
+
+  it('should withdraw rewards', async function () {
+    const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
+    await this.race.createTrack(hashId, {from: accounts[0], value: 3 * 10 ** 18});
+    await this.race.joinToTrack(hashId, {from: accounts[1], value: 3 * 10 ** 18}); // winner
+
+    const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
+    const amounts1 = [web3.toBigNumber(20), web3.toBigNumber(80)];
+    const amounts2 = [web3.toBigNumber(10), web3.toBigNumber(90)]; 
+    await this.race.setPortfolio(hashId, names, amounts2);
+    await this.race.setPortfolio(hashId, names, amounts1, {from: accounts[1]});
+
+    const startTime = await this.race.runningTracks(hashId);
+    await this.rate.setRates(startTime, names, [web3.toBigNumber(600000), web3.toBigNumber(40000)]);
+    await this.rate.setRates(startTime.plus(300), names, [web3.toBigNumber(650000), web3.toBigNumber(45000)]);
+    const beforeBalance = await web3.eth.getBalance(accounts[0]);
+    await this.race.withdrawRewards(hashId, {from: accounts[2]});
+    const afterBalance = await web3.eth.getBalance(accounts[0]);
+
+    assert.equal(afterBalance.minus(beforeBalance).toNumber(), 6 * 10 ** 18);
   });
 });

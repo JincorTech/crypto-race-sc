@@ -64,6 +64,22 @@ contract Race {
       
     addPlayer(t, createPlayer(msg.sender, t.playerAddresses.length));
   }
+
+  function withdrawRewards(bytes32 _trackId) external {
+    Track storage t = tracks[_trackId];
+    
+    address[] memory winners = getWinners(_trackId);
+    uint amount = (getDepo(_trackId, winners[0]) * t.numPlayers) / winners.length;
+    uint i = 0;
+    for(i = 0; i < t.playerAddresses.length; i++) {
+      deposites[_trackId][t.playerAddresses[i]] = 0;
+    }
+    
+    DebugUint(amount);
+    for (i = 0; i < winners.length; i++) {
+      winners[i].transfer(amount);
+    }
+  }
   
   function getCountPlayerByTrackId(bytes32 _id) public view returns (uint) {
     return tracks[_id].playerAddresses.length;
