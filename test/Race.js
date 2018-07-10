@@ -1,4 +1,5 @@
 const Race = artifacts.require('Race');
+const Rate = artifacts.require('Rate');
 
 const assertJump = function(error) {
   assert.isAbove(error.message.search('VM Exception while processing transaction: revert'), -1, 'Invalid opcode error must be returned');
@@ -14,7 +15,8 @@ async function increaseTimestampBy(seconds) {
 
 contract('Race', function(accounts) {
   beforeEach(async function () {
-    this.race = await Race.new();
+    this.rate = await Rate.new();
+    this.race = await Race.new(this.rate.address);
   });
 
   it('should create contract', async function () {
@@ -132,5 +134,23 @@ contract('Race', function(accounts) {
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
 
     assert.equal(await this.race.getDepo(hashId, accounts[0]), 1 * 10 ** 18);
-  })
+  });
+
+  it('should get winners', async function () {
+    const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
+    await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
+    await this.race.joinToTrack(hashId, {from: accounts[1], value: 1 * 10 ** 18});
+
+    const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
+    const amounts1 = [web3.toBigNumber(20), web3.toBigNumber(80)];
+    const amounts2 = [web3.toBigNumber(10), web3.toBigNumber(90)];
+    await this.race.setPortfolio(hashId, names, amounts2);
+    await this.race.setPortfolio(hashId, names, amounts1, {from: accounts[1]});
+
+    const startTime = await this.race.runningTracks(hashId);
+    await this.rate.setRates(startTime, names, [web3.toBigNumber(600000), web3.toBigNumber(40000)]);
+    await this.rate.setRates(startTime.plus(300), names, [web3.toBigNumber(650000), web3.toBigNumber(45000)]);
+    
+    assert.deepEqual(await this.race.getWinners(hashId), ['0x6e517e4acf913ac5994c16c1792ba1666655d050']);
+  });
 });

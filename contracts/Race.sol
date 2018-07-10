@@ -1,5 +1,6 @@
 pragma solidity 0.4.24;
 
+import "./Rate.sol";
 
 contract Race {
     
@@ -25,6 +26,8 @@ contract Race {
   struct RunningTrack {
     uint startTime;
   }
+
+  Rate public rate;
   
   mapping(bytes32 => Track) public tracks;
   mapping(bytes32 => mapping(address => uint)) public deposites;
@@ -37,6 +40,11 @@ contract Race {
 
   event DebugUint(uint i);
   event DebugBytes(bytes32 b);
+  event DebugArray(uint[] a);
+
+  constructor (address _rateAddress) public {
+    rate = Rate(_rateAddress);
+  }
 
   function createTrack(bytes32 id) external payable {
     require(tracks[id].numPlayers == 0);
@@ -164,9 +172,85 @@ contract Race {
       numPlayers: 2
     });
   }
+
+  function getWinners(bytes32 _trackId) public view returns (address[]) {
+    (address[] memory players, int[] memory points) = getStats(_trackId);
+
+    uint i = 0;
+    uint w_min = 0;
+    int tmpI;
+    address tmpA;
+
+    for(uint pos = 0; pos < points.length - 1; pos++) {
+      w_min = pos;
+      for(i = pos; i < points.length; i++) {
+        if(points[i] < points[w_min]) {
+          w_min = i;
+        }
+      }
+      if(w_min == pos) continue;
+      tmpI = points[pos];
+      points[pos] = points[w_min];
+      points[w_min] = tmpI;
+
+      tmpA = players[pos];
+      players[pos] = players[w_min];
+      players[w_min] = tmpA;
+    }
+
+    i = 0;
+    uint count = countWinners(points);
+    address[] memory winners = new address[](count);
+
+    for (pos = players.length - 1; pos >= players.length - count; pos--) {
+      winners[i++] = players[pos];
+    }
+
+    return winners;
+  }
+
+  function getStat(bytes32 _trackId, address _player) public view returns (int) {
+    Track memory t = tracks[_trackId];
+    int points = 0;
+    (bytes32[] memory names, uint[] memory amounts) = getPortfolio(_trackId, _player);
+    uint[] memory ratesAtStart = rate.getRates(runningTracks[_trackId].startTime, names);
+    uint[] memory ratesAtEnd = rate.getRates(runningTracks[_trackId].startTime + 300 seconds, names);
+
+    for (uint i = 0; i < names.length; i++) {
+      points += int(((ratesAtEnd[i] - ratesAtStart[i])* 1 ether * amounts[i])/ratesAtStart[i]);
+    }
+
+    return points;
+  }
+
+  function getStats(bytes32 _trackId) public view returns (address[], int[]) {
+    Track memory t = tracks[_trackId];
+    address[] memory players = new address[](t.playerAddresses.length);
+    int[] memory points = new int[](t.playerAddresses.length);
+
+    for (uint i = 0; i < t.playerAddresses.length; i++) {
+      players[i] = t.playerAddresses[i];
+      points[i] = getStat(_trackId, players[i]);
+    }
+
+    return (players, points);
+  }
   
   function createPlayer(address _addr, uint _id) internal pure returns (Player) {
     return Player({addr: _addr, portfolioIndex: new bytes32[](0), portfolioElements: 0, id: _id});
+  }
+
+  function countWinners(int[] memory _points) internal pure returns (uint) {
+    uint count = 1;
+    for (uint i = _points.length - 2; i >= 0; i--) {
+      if (_points[i] == _points[_points.length - 1]) {
+        count++;
+      } else {
+        return count;
+      }
+    }
+
+    return count;
   }
   
   function addPlayer(Track storage t, Player p) internal {
