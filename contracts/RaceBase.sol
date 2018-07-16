@@ -1,37 +1,11 @@
 pragma solidity 0.4.24;
 
 import "./Rate.sol";
+import "./RaceCore.sol";
 
-contract Race {
-    
-  struct Player {
-    uint id;
-    uint portfolioElements;
-    address addr;
-    bytes32[] portfolioIndex;
-        
-    mapping(bytes32 => uint) portfolio;
-  }
-    
-  struct Track {
-    uint readyCount;
-    uint duration;
-    uint numPlayers;
-    address[] playerAddresses;
-    bool[] readyPlayers;
-    
-    mapping(address => Player) players;
-  }
-    
-  struct RunningTrack {
-    uint startTime;
-  }
+contract RaceBase is RaceCore {
 
   Rate public rate;
-  
-  mapping(bytes32 => Track) public tracks;
-  mapping(bytes32 => mapping(address => uint)) public deposites;
-  mapping(bytes32 => RunningTrack) public runningTracks;
   
   modifier onlyFreeTrack(bytes32 _trackId) {
     require(tracks[_trackId].playerAddresses.length < 2);
@@ -46,13 +20,22 @@ contract Race {
     rate = Rate(_rateAddress);
   }
 
-  function createTrack(bytes32 id) external payable {
-    require(tracks[id].numPlayers == 0);
-    deposites[id][msg.sender] = msg.value;
+  // External functions
+  function createTrack(bytes32 _trackId) external payable {
+    require(tracks[_trackId].numPlayers == 0);
 
-    tracks[id] = createEmptyTrack();
-    Track storage t = tracks[id];
+    tracks[_trackId] = createEmptyTrack(msg.value);
+    Track storage t = tracks[_trackId];
+
     addPlayer(t, createPlayer(msg.sender, t.playerAddresses.length));
+
+    deposites[_trackId][msg.sender] = msg.value;
+  }
+
+  function createTrackFromBack(bytes32 _trackId, uint bet) external {
+    require(tracks[_trackId].numPlayers == 0);
+
+    tracks[_trackId] = createEmptyTrack(bet);
   }
 
   function joinToTrack(bytes32 _id) external payable onlyFreeTrack(_id) {
@@ -69,7 +52,7 @@ contract Race {
     Track storage t = tracks[_trackId];
     
     address[] memory winners = getWinners(_trackId);
-    uint amount = (getDepo(_trackId, winners[0]) * t.numPlayers) / winners.length;
+    uint amount = (getBetAmount(_trackId) * t.numPlayers) / winners.length;
     uint i = 0;
     for(i = 0; i < t.playerAddresses.length; i++) {
       deposites[_trackId][t.playerAddresses[i]] = 0;
@@ -80,29 +63,7 @@ contract Race {
       winners[i].transfer(amount);
     }
   }
-  
-  function getCountPlayerByTrackId(bytes32 _id) public view returns (uint) {
-    return tracks[_id].playerAddresses.length;
-  }
-  
-  function getCountReadyPlayerByTrackId(bytes32 _id) public view returns (uint) {
-    return tracks[_id].readyCount;
-  }
-  
-  function getTrackOwner(bytes32 _id) public view returns (address) {
-    return tracks[_id].players[tracks[_id].playerAddresses[0]].addr;
-  }
-  
-  function getPlayersByTrackId(bytes32 _id) public view returns (address[]) {
-    address[] memory a = new address[](tracks[_id].playerAddresses.length);
-      
-    for (uint i = 0; i < tracks[_id].playerAddresses.length; i++) {
-      a[i] = (tracks[_id].playerAddresses[i]);
-    }
-      
-    return a;
-  }
-  
+
   function setPortfolio(bytes32 _trackId, bytes32[] names, uint[] values) external {
     require(names.length == values.length);
     require(!isReadyToStart(_trackId));
@@ -132,6 +93,35 @@ contract Race {
       runningTracks[_trackId] = RunningTrack({startTime: now + (5 - (now % 5))});
     }
   }
+  
+  // External functions that are view
+  // ...
+  
+  // External functions that are pure
+  // ...
+  
+  // Public functions
+  function getCountPlayerByTrackId(bytes32 _id) public view returns (uint) {
+    return tracks[_id].playerAddresses.length;
+  }
+  
+  function getCountReadyPlayerByTrackId(bytes32 _id) public view returns (uint) {
+    return tracks[_id].readyCount;
+  }
+  
+  function getTrackOwner(bytes32 _id) public view returns (address) {
+    return tracks[_id].players[tracks[_id].playerAddresses[0]].addr;
+  }
+  
+  function getPlayersByTrackId(bytes32 _id) public view returns (address[]) {
+    address[] memory a = new address[](tracks[_id].playerAddresses.length);
+      
+    for (uint i = 0; i < tracks[_id].playerAddresses.length; i++) {
+      a[i] = (tracks[_id].playerAddresses[i]);
+    }
+      
+    return a;
+  }
 
   function getPortfolio(bytes32 _trackId, address _addr) public view returns (bytes32[], uint[]) {
     bytes32[] memory n = new bytes32[](tracks[_trackId].players[_addr].portfolioElements);
@@ -151,8 +141,8 @@ contract Race {
     return t.readyCount == t.numPlayers;
   }
 
-  function getDepo(bytes32 _trackId, address _from) public view returns (uint) {
-    return deposites[_trackId][_from];
+  function getBetAmount(bytes32 _trackId) public view returns (uint) {
+    return tracks[_trackId].betAmount;
   }
   
   function isEndedTrack(bytes32 _trackId) public view returns (bool) {
@@ -167,26 +157,6 @@ contract Race {
 
   function getPlayers(bytes32 _trackId) public view returns(address[]) {
     return tracks[_trackId].playerAddresses;
-  }
-
-  function isNameExists(bytes32[] storage names, bytes32 name, uint numNames) internal view returns (bool) {
-    for (uint i = 0; i < numNames; i++) {
-      if (names[i] == name) {
-        return true;
-      }
-    }
-      
-    return false;
-  }
-  
-  function createEmptyTrack() internal view returns (Track) {
-    return Track({
-      playerAddresses: new address[](0),
-      readyCount: 0,
-      readyPlayers: new bool[](0),
-      duration: 5 minutes,
-      numPlayers: 2
-    });
   }
 
   function getWinners(bytes32 _trackId) public view returns (address[]) {
@@ -252,8 +222,20 @@ contract Race {
     return (players, points);
   }
   
+  // Internal functions
   function createPlayer(address _addr, uint _id) internal pure returns (Player) {
     return Player({addr: _addr, portfolioIndex: new bytes32[](0), portfolioElements: 0, id: _id});
+  }
+
+  function createEmptyTrack(uint betAmount) internal view returns (Track) {
+    return Track({
+      playerAddresses: new address[](0),
+      readyCount: 0,
+      readyPlayers: new bool[](0),
+      duration: 5 minutes,
+      numPlayers: 2,
+      betAmount: betAmount
+    });
   }
 
   function countWinners(int[] memory _points) internal pure returns (uint) {
@@ -274,4 +256,19 @@ contract Race {
     t.playerAddresses.push(p.addr);
     t.readyPlayers.push(false);
   }
+
+  function isNameExists(bytes32[] storage names, bytes32 name, uint numNames) internal view returns (bool) {
+    for (uint i = 0; i < numNames; i++) {
+      if (names[i] == name) {
+        return true;
+      }
+    }
+      
+    return false;
+  }
+
+  
+  
+  // Private functions
+  // ...
 }

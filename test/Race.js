@@ -1,4 +1,4 @@
-const Race = artifacts.require('Race');
+const RaceBase = artifacts.require('RaceBase');
 const Rate = artifacts.require('Rate');
 
 const assertJump = function(error) {
@@ -16,7 +16,7 @@ async function increaseTimestampBy(seconds) {
 contract('Race', function(accounts) {
   beforeEach(async function () {
     this.rate = await Rate.new();
-    this.race = await Race.new(this.rate.address);
+    this.race = await RaceBase.new(this.rate.address);
   });
 
   it('should create contract', async function () {
@@ -28,6 +28,12 @@ contract('Race', function(accounts) {
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
 
     assert.equal(await this.race.getTrackOwner(hashId), accounts[0]);
+  });
+
+  it('should create track from backend', async function () {
+    const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
+    await this.race.createTrackFromBack(hashId, web3.toBigNumber(1 * 10 ** 18));
+    assert.equal((await this.race.getBetAmount(hashId)).toNumber(), 1 * 10 ** 18);
   });
 
   it('should not create track - already exists', async function () {
@@ -126,14 +132,14 @@ contract('Race', function(accounts) {
     await this.race.setPortfolio(hashId, names, amounts);
     await this.race.setPortfolio(hashId, names, amounts, {from: accounts[1]});
 
-    assert.deepEqual(await this.race.getPlayers(hashId), [ '0x6e517e4acf913ac5994c16c1792ba1666655d050','0x2dca65407eed461704f4f6156c25e3741876da2b' ]);
+    assert.deepEqual(await this.race.getPlayers(hashId), [accounts[0], accounts[1]]);
   });
 
-  it('should get depo', async function () {
+  it('should get bet amount', async function () {
     const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
 
-    assert.equal(await this.race.getDepo(hashId, accounts[0]), 1 * 10 ** 18);
+    assert.equal(await this.race.getBetAmount(hashId), 1 * 10 ** 18);
   });
 
   it('should get winners', async function () {
@@ -151,7 +157,7 @@ contract('Race', function(accounts) {
     await this.rate.setRates(startTime, names, [web3.toBigNumber(600000), web3.toBigNumber(40000)]);
     await this.rate.setRates(startTime.plus(300), names, [web3.toBigNumber(650000), web3.toBigNumber(45000)]);
 
-    assert.deepEqual(await this.race.getWinners(hashId), ['0x6e517e4acf913ac5994c16c1792ba1666655d050']);
+    assert.deepEqual(await this.race.getWinners(hashId), [accounts[0]]);
   });
 
   it('should withdraw rewards', async function () {
