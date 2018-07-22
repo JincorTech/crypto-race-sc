@@ -88,9 +88,11 @@ contract RaceBase is RaceCore {
       t.readyCount++;
       t.readyPlayers[p.id] = true;
     }
-      
+  }
+
+  function startTrack(bytes32 _trackId, uint _start) external {
     if (tracks[_trackId].readyCount == tracks[_trackId].numPlayers) {
-      runningTracks[_trackId] = RunningTrack({startTime: now + (5 - (now % 5))});
+      runningTracks[_trackId] = RunningTrack({startTime: _start + (5 - (_start % 5))});
     }
   }
   

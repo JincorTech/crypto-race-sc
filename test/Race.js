@@ -104,7 +104,10 @@ contract('Race', function(accounts) {
     await this.race.setPortfolio(hashId, names, amounts);
     await this.race.setPortfolio(hashId, names, amounts, {from: accounts[1]});
 
+    await this.race.startTrack(hashId, web3.toBigNumber(15000000));
+
     assert.notEqual((await this.race.runningTracks(hashId)).toNumber(), 0);
+    assert.equal((await this.race.runningTracks(hashId)).toNumber(), 15000005);
   });
 
   it('should is ended track', async function () {
