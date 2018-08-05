@@ -32,7 +32,7 @@ contract('Race', function(accounts) {
 
   it('should create track from backend', async function () {
     const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
-    await this.race.createTrackFromBack(hashId, web3.toBigNumber(1 * 10 ** 18));
+    await this.race.createTrackFromBack(hashId, web3.toBigNumber(1 * 10 ** 18), web3.toBigNumber(4), web3.toBigNumber(300));
     assert.equal((await this.race.getBetAmount(hashId)).toNumber(), 1 * 10 ** 18);
   });
 
@@ -107,7 +107,7 @@ contract('Race', function(accounts) {
     await this.race.startTrack(hashId, web3.toBigNumber(15000000));
 
     assert.notEqual((await this.race.runningTracks(hashId)).toNumber(), 0);
-    assert.equal((await this.race.runningTracks(hashId)).toNumber(), 15000005);
+    assert.equal((await this.race.runningTracks(hashId)).toNumber(), 15000000);
   });
 
   it('should is ended track', async function () {

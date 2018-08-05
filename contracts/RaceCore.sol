@@ -15,6 +15,7 @@ contract RaceCore {
     uint readyCount;
     uint duration;
     uint numPlayers;
+    uint maxPlayers;
     uint betAmount;
     address[] playerAddresses;
     bool[] readyPlayers;

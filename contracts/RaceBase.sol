@@ -6,9 +6,11 @@ import "./RaceCore.sol";
 contract RaceBase is RaceCore {
 
   Rate public rate;
+
+  uint constant public MAX_PLAYERS_LIMIT = 10;
   
   modifier onlyFreeTrack(bytes32 _trackId) {
-    require(tracks[_trackId].playerAddresses.length < 2);
+    require(tracks[_trackId].maxPlayers > tracks[_trackId].numPlayers);
     _;
   }
 
@@ -24,7 +26,7 @@ contract RaceBase is RaceCore {
   function createTrack(bytes32 _trackId) external payable {
     require(tracks[_trackId].numPlayers == 0);
 
-    tracks[_trackId] = createEmptyTrack(msg.value);
+    tracks[_trackId] = createEmptyTrack(msg.value, 2, 3 minutes);
     Track storage t = tracks[_trackId];
 
     addPlayer(t, createPlayer(msg.sender, t.playerAddresses.length));
@@ -32,10 +34,11 @@ contract RaceBase is RaceCore {
     deposites[_trackId][msg.sender] = msg.value;
   }
 
-  function createTrackFromBack(bytes32 _trackId, uint bet) external {
+  function createTrackFromBack(bytes32 _trackId, uint _betAmount, uint _maxPlayers, uint _duration) external {
     require(tracks[_trackId].numPlayers == 0);
+    require(MAX_PLAYERS_LIMIT >= _maxPlayers);
 
-    tracks[_trackId] = createEmptyTrack(bet);
+    tracks[_trackId] = createEmptyTrack(_betAmount, _maxPlayers, _duration);
   }
 
   function joinToTrack(bytes32 _id) external payable onlyFreeTrack(_id) {
@@ -57,8 +60,7 @@ contract RaceBase is RaceCore {
     for(i = 0; i < t.playerAddresses.length; i++) {
       deposites[_trackId][t.playerAddresses[i]] = 0;
     }
-    
-    DebugUint(amount);
+
     for (i = 0; i < winners.length; i++) {
       winners[i].transfer(amount);
     }
@@ -70,7 +72,7 @@ contract RaceBase is RaceCore {
       
     Track storage t = tracks[_trackId];
     Player storage p = t.players[msg.sender];
-    p.portfolioElements = 0; 
+    p.portfolioElements = 0;
       
     uint totalPercent = 0;
     for (uint i = 0; i < names.length; i++) {
@@ -92,7 +94,11 @@ contract RaceBase is RaceCore {
 
   function startTrack(bytes32 _trackId, uint _start) external {
     if (tracks[_trackId].readyCount == tracks[_trackId].numPlayers) {
-      runningTracks[_trackId] = RunningTrack({startTime: _start + (5 - (_start % 5))});
+      if (_start % 5 == 0) {
+        runningTracks[_trackId] = RunningTrack({startTime: _start});
+      } else {
+        runningTracks[_trackId] = RunningTrack({startTime: _start + (5 - (_start % 5))});
+      }
     }
   }
   
@@ -229,14 +235,15 @@ contract RaceBase is RaceCore {
     return Player({addr: _addr, portfolioIndex: new bytes32[](0), portfolioElements: 0, id: _id});
   }
 
-  function createEmptyTrack(uint betAmount) internal view returns (Track) {
+  function createEmptyTrack(uint _betAmount, uint _maxPlayers, uint _duration) internal view returns (Track) {
     return Track({
       playerAddresses: new address[](0),
       readyCount: 0,
       readyPlayers: new bool[](0),
-      duration: 5 minutes,
-      numPlayers: 2,
-      betAmount: betAmount
+      duration: _duration,
+      numPlayers: 0,
+      maxPlayers: _maxPlayers,
+      betAmount: _betAmount
     });
   }
 
@@ -257,6 +264,7 @@ contract RaceBase is RaceCore {
     t.players[p.addr] = p;
     t.playerAddresses.push(p.addr);
     t.readyPlayers.push(false);
+    t.numPlayers++;
   }
 
   function isNameExists(bytes32[] storage names, bytes32 name, uint numNames) internal view returns (bool) {
