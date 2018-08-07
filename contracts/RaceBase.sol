@@ -41,14 +41,14 @@ contract RaceBase is RaceCore {
     tracks[_trackId] = createEmptyTrack(_betAmount, _maxPlayers, _duration);
   }
 
-  function joinToTrack(bytes32 _id) external payable onlyFreeTrack(_id) {
-    require(msg.value == deposites[_id][getTrackOwner(_id)]);
+  function joinToTrack(bytes32 _id, bytes32[] names, uint[] values) external payable onlyFreeTrack(_id) {
+    require(msg.value == tracks[_id].betAmount);
     Track storage t = tracks[_id];
-      
+    
     require(!(t.players[msg.sender].addr == msg.sender));
     require(!isReadyToStart(_id));
-      
     addPlayer(t, createPlayer(msg.sender, t.playerAddresses.length));
+    _setPortfolio(_id, names, values);
   }
 
   function withdrawRewards(bytes32 _trackId) external {
@@ -146,7 +146,7 @@ contract RaceBase is RaceCore {
   function isReadyToStart(bytes32 _trackId) public view returns (bool) {
     Track storage t = tracks[_trackId];
     
-    return t.readyCount == t.numPlayers;
+    return t.readyCount == t.maxPlayers;
   }
 
   function getBetAmount(bytes32 _trackId) public view returns (uint) {
@@ -280,5 +280,29 @@ contract RaceBase is RaceCore {
   
   
   // Private functions
-  // ...
+  function _setPortfolio(bytes32 _trackId, bytes32[] names, uint[] values) private {
+    require(names.length == values.length);
+    require(!isReadyToStart(_trackId));
+      
+    Track storage t = tracks[_trackId];
+    Player storage p = t.players[msg.sender];
+    p.portfolioElements = 0;
+      
+    uint totalPercent = 0;
+    for (uint i = 0; i < names.length; i++) {
+      require(values[i] > 0 && values[i] <= 100);
+      require(!isNameExists(p.portfolioIndex, names[i], p.portfolioElements));
+          
+      p.portfolioIndex.push(names[i]);
+      p.portfolio[names[i]] = values[i];
+      p.portfolioElements++;
+      totalPercent += values[i];
+      require(totalPercent <= 100);
+    }
+      
+    if (!t.readyPlayers[p.id]) {
+      t.readyCount++;
+      t.readyPlayers[p.id] = true;
+    }
+  }
 }

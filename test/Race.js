@@ -63,7 +63,11 @@ contract('Race', function(accounts) {
   it('should join to track by id', async function () {
     const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
-    await this.race.joinToTrack(hashId, {from: accounts[1], value: 1 * 10 ** 18});
+
+    const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
+    const amounts = [web3.toBigNumber(10), web3.toBigNumber(90)];
+
+    await this.race.joinToTrack(hashId, names, amounts, {from: accounts[1], value: 1 * 10 ** 18});
 
     assert.equal(await this.race.getCountPlayerByTrackId(hashId), 2);
   });
@@ -73,7 +77,9 @@ contract('Race', function(accounts) {
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
     
     try {
-      await this.race.joinToTrack(hashId, {from: accounts[1], value: 2 * 10 ** 18});
+      const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
+      const amounts = [web3.toBigNumber(10), web3.toBigNumber(90)];
+      await this.race.joinToTrack(hashId, names, amounts, {from: accounts[1], value: 2 * 10 ** 18});
     } catch (error) {
       return assertJump(error);
     }
@@ -84,12 +90,12 @@ contract('Race', function(accounts) {
   it('should set ready to start', async function () {
     const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
-    await this.race.joinToTrack(hashId, {from: accounts[1], value: 1 * 10 ** 18});
 
     const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
     const amounts = [web3.toBigNumber(10), web3.toBigNumber(90)];
+    await this.race.joinToTrack(hashId, names, amounts, {from: accounts[1], value: 1 * 10 ** 18});
+
     await this.race.setPortfolio(hashId, names, amounts);
-    await this.race.setPortfolio(hashId, names, amounts, {from: accounts[1]});
 
     assert(this.race.isReadyToStart(hashId), true);
   });
@@ -97,12 +103,12 @@ contract('Race', function(accounts) {
   it('should get running track', async function () {
     const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
-    await this.race.joinToTrack(hashId, {from: accounts[1], value: 1 * 10 ** 18});
+    
 
     const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
     const amounts = [web3.toBigNumber(10), web3.toBigNumber(90)];
+    await this.race.joinToTrack(hashId, names, amounts, {from: accounts[1], value: 1 * 10 ** 18});
     await this.race.setPortfolio(hashId, names, amounts);
-    await this.race.setPortfolio(hashId, names, amounts, {from: accounts[1]});
 
     await this.race.startTrack(hashId, web3.toBigNumber(15000000));
 
@@ -113,12 +119,12 @@ contract('Race', function(accounts) {
   it('should is ended track', async function () {
     const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
-    await this.race.joinToTrack(hashId, {from: accounts[1], value: 1 * 10 ** 18});
+    
 
     const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
     const amounts = [web3.toBigNumber(10), web3.toBigNumber(90)];
+    await this.race.joinToTrack(hashId, names, amounts, {from: accounts[1], value: 1 * 10 ** 18});
     await this.race.setPortfolio(hashId, names, amounts);
-    await this.race.setPortfolio(hashId, names, amounts, {from: accounts[1]});
 
     await increaseTimestampBy(5000);
 
@@ -128,12 +134,12 @@ contract('Race', function(accounts) {
   it('should get players', async function () {
     const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
     await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
-    await this.race.joinToTrack(hashId, {from: accounts[1], value: 1 * 10 ** 18});
+    
 
     const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
     const amounts = [web3.toBigNumber(10), web3.toBigNumber(90)];
+    await this.race.joinToTrack(hashId, names, amounts, {from: accounts[1], value: 1 * 10 ** 18});
     await this.race.setPortfolio(hashId, names, amounts);
-    await this.race.setPortfolio(hashId, names, amounts, {from: accounts[1]});
 
     assert.deepEqual(await this.race.getPlayers(hashId), [accounts[0], accounts[1]]);
   });
@@ -146,15 +152,15 @@ contract('Race', function(accounts) {
   });
 
   it('should get winners', async function () {
-    const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
-    await this.race.createTrack(hashId, {from: accounts[0], value: 1 * 10 ** 18});
-    await this.race.joinToTrack(hashId, {from: accounts[1], value: 1 * 10 ** 18});
-
     const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
     const amounts1 = [web3.toBigNumber(20), web3.toBigNumber(80)];
     const amounts2 = [web3.toBigNumber(10), web3.toBigNumber(90)];
-    await this.race.setPortfolio(hashId, names, amounts2);
-    await this.race.setPortfolio(hashId, names, amounts1, {from: accounts[1]});
+
+    const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
+    await this.race.createTrackFromBack(hashId, web3.toWei(1, 'ether'), web3.toBigNumber(2), web3.toBigNumber(300), {from: accounts[3]});
+
+    await this.race.joinToTrack(hashId, names, amounts2, {from: accounts[0], value: 1 * 10 ** 18});
+    await this.race.joinToTrack(hashId, names, amounts1, {from: accounts[1], value: 1 * 10 ** 18});
 
     const startTime = await this.race.runningTracks(hashId);
     await this.rate.setRates(startTime, names, [web3.toBigNumber(600000), web3.toBigNumber(40000)]);
@@ -165,14 +171,13 @@ contract('Race', function(accounts) {
 
   it('should withdraw rewards', async function () {
     const hashId = web3.toHex(web3.sha3('6e58599f-80b0-448f-a1a4-6a6fe629a52b'));
-    await this.race.createTrack(hashId, {from: accounts[0], value: 3 * 10 ** 18});
-    await this.race.joinToTrack(hashId, {from: accounts[1], value: 3 * 10 ** 18}); // winner
+    await this.race.createTrackFromBack(hashId, web3.toWei(3, 'ether'), web3.toBigNumber(2), web3.toBigNumber(300), {from: accounts[3]});
 
     const names = [web3.fromAscii('btc'), web3.fromAscii('eth')];
     const amounts1 = [web3.toBigNumber(20), web3.toBigNumber(80)];
     const amounts2 = [web3.toBigNumber(10), web3.toBigNumber(90)]; 
-    await this.race.setPortfolio(hashId, names, amounts2);
-    await this.race.setPortfolio(hashId, names, amounts1, {from: accounts[1]});
+    await this.race.joinToTrack(hashId, names, amounts2, {from: accounts[0], value: 3 * 10 ** 18});
+    await this.race.joinToTrack(hashId, names, amounts1, {from: accounts[1], value: 3 * 10 ** 18});
 
     const startTime = await this.race.runningTracks(hashId);
     await this.rate.setRates(startTime, names, [web3.toBigNumber(600000), web3.toBigNumber(40000)]);
